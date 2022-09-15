@@ -47,9 +47,9 @@ namespace DevToys.ViewModels.Tools.EncodersDecoders.JwtDecoderEncoder
                 IdentityModelEventSource.ShowPII = true;
                 var handler = new JwtSecurityTokenHandler();
                 JwtSecurityToken jwtSecurityToken = handler.ReadJwtToken(tokenParameters.Token);
-                AddJwtPayloadClarifications(jwtSecurityToken.Payload);
                 tokenResult.Header = JsonHelper.Format(jwtSecurityToken.Header.SerializeToJson(), Indentation.TwoSpaces, false);
                 tokenResult.Payload = JsonHelper.Format(jwtSecurityToken.Payload.SerializeToJson(), Indentation.TwoSpaces, false);
+                tokenResult.Payload = AddJwtPayloadClarifications(jwtSecurityToken.Payload, tokenResult.Payload);
                 tokenResult.TokenAlgorithm = tokenParameters.TokenAlgorithm;
 
                 if (decodeParameters.ValidateSignature)
@@ -70,16 +70,18 @@ namespace DevToys.ViewModels.Tools.EncodersDecoders.JwtDecoderEncoder
             return tokenResult;
         }
 
-        private JwtPayload AddJwtPayloadClarifications(JwtPayload jwtPayload)
+        private string AddJwtPayloadClarifications(JwtPayload jwtPayload, string tokenResultPayload)
         {
+            var sb = new StringBuilder(tokenResultPayload);
+            sb.AppendLine();
             var keys = Enum.GetValues(typeof(RegisteredPayloadClaims)).Cast<RegisteredPayloadClaims>().Select(e => new { e.GetAttribute<ShortCodeAttribute>().ShortName, e }).ToList();
 
             foreach (var t in keys.Where(t => jwtPayload.ContainsKey(t.ShortName)))
             {
-                jwtPayload.TryAdd($"{t.ShortName} - Description", t.e.ToString());
+                sb.AppendLine($"// {t.ShortName} - {t.e.GetDescription()}");
             }
 
-            return jwtPayload;
+            return sb.ToString();
         }
 
         /// <summary>

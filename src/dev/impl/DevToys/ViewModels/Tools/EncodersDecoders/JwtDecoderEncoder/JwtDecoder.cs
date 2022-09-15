@@ -49,6 +49,7 @@ namespace DevToys.ViewModels.Tools.EncodersDecoders.JwtDecoderEncoder
                 JwtSecurityToken jwtSecurityToken = handler.ReadJwtToken(tokenParameters.Token);
                 tokenResult.Header = JsonHelper.Format(jwtSecurityToken.Header.SerializeToJson(), Indentation.TwoSpaces, false);
                 tokenResult.Payload = JsonHelper.Format(jwtSecurityToken.Payload.SerializeToJson(), Indentation.TwoSpaces, false);
+                tokenResult.Payload = AddJwtPayloadClarifications(jwtSecurityToken.Payload, tokenResult.Payload);
                 tokenResult.TokenAlgorithm = tokenParameters.TokenAlgorithm;
 
                 if (decodeParameters.ValidateSignature)
@@ -67,6 +68,20 @@ namespace DevToys.ViewModels.Tools.EncodersDecoders.JwtDecoderEncoder
             }
 
             return tokenResult;
+        }
+
+        private string AddJwtPayloadClarifications(JwtPayload jwtPayload, string tokenResultPayload)
+        {
+            var sb = new StringBuilder(tokenResultPayload);
+            sb.AppendLine();
+            var keys = Enum.GetValues(typeof(RegisteredPayloadClaims)).Cast<RegisteredPayloadClaims>().Select(e => new { e.GetAttribute<ShortCodeAttribute>().ShortName, e }).ToList();
+
+            foreach (var t in keys.Where(t => jwtPayload.ContainsKey(t.ShortName)))
+            {
+                sb.AppendLine($"// {t.ShortName} - {t.e.GetDescription()}");
+            }
+
+            return sb.ToString();
         }
 
         /// <summary>
@@ -151,7 +166,7 @@ namespace DevToys.ViewModels.Tools.EncodersDecoders.JwtDecoderEncoder
         }
 
         /// <summary>
-        /// Generate a Symetric Security Key using the token signature (base 64 or not)
+        /// Generate a Symmetric Security Key using the token signature (base 64 or not)
         /// </summary>
         /// <param name="tokenParameters">Token parameters with the token signature</param>
         private SymmetricSecurityKey? GetHmacShaValidationKey(TokenParameters tokenParameters)
@@ -257,7 +272,7 @@ namespace DevToys.ViewModels.Tools.EncodersDecoders.JwtDecoderEncoder
         }
 
         /// <summary>
-        /// Generate the Asymetric Security Key using the token signing public key
+        /// Generate the Asymmetric Security Key using the token signing public key
         /// </summary>
         /// <param name="tokenParameters">Token parameters with the token signing public key</param>
         private AsymmetricKeyParameter? GetPublicAsymmetricKeyParameter(TokenParameters tokenParameters)
@@ -278,14 +293,14 @@ namespace DevToys.ViewModels.Tools.EncodersDecoders.JwtDecoderEncoder
             }
 
             var pemReader = new PemReader(new StringReader(publicKeyStringBuilder.ToString()));
-            var asymetricPublicKey = (AsymmetricKeyParameter)pemReader.ReadObject();
-            if (asymetricPublicKey is null)
+            var asymmetricPublicKey = (AsymmetricKeyParameter)pemReader.ReadObject();
+            if (asymmetricPublicKey is null)
             {
                 RaiseError(_localizedStrings.InvalidPublicKeyError);
                 return null;
             }
 
-            return asymetricPublicKey;
+            return asymmetricPublicKey;
         }
 
         private void RaiseError(string message)
